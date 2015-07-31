@@ -1,7 +1,17 @@
 from elasticsearch import Elasticsearch
+import uuid
 
 
-class User(object):
+class Model(object):
+
+    def __init__(self):
+        super(Model, self).__init__()
+        self.pk = None
+
+    def get_public_attribute(self):
+        return [attribute for attribute in self.__dict__ if attribute != 'pk']
+
+class User(Model):
 
     def __init__(self):
         super(User, self).__init__()
@@ -12,29 +22,45 @@ class User(object):
         return self.email
 
 
-class UserManager(object):
+class ObjectManager(object):
 
-    index = 'user'
-
-    def __init__(self):
-        super(UserManager, self).__init__()
+    def __init__(self, index, doc_type, model_class):
+        super(ObjectManager, self).__init__()
+        self.index = index
+        self.doc_type = doc_type
+        self.model_class = model_class
         self.es = Elasticsearch()
-        self.mapper = UserMapper()
+        self.mapper = ObjectMapper()
 
-    def get_user_by_email(self, email):
-        source_dict = self.es.search(self.index, q='email:'+email)
-        return self.mapper.from_dict_to_model(source_dict['hits']['hits'][0]['_source'])
+    def find_one(self, pk):
+        source_dict = self.es.get(index=self.index, doc_type=self.doc_type, id=pk)
+        return self.mapper.from_dict_to_model(source_dict['_source'], self.model_class)
 
+    def save(self, object):
+        model_dict = self.mapper.from_model_to_dict(object)
+        res = self.es.index(index=self.index, doc_type=self.doc_type, id=uuid.uuid1().int, body=model_dict)
+        return res['created']
 
-class UserMapper(object):
+    def find_all(self):
+        res = self.es.search(index=self.index, body={"query": {"match_all": {}}})
+        return [self.mapper.from_dict_to_model(model, self.model_class) for model in res['hits']['hits']]
+
+class ObjectMapper(object):
 
     @staticmethod
-    def from_dict_to_model(source_dict):
-        model = User()
-        for model_attribute, attriute_value in source_dict.items():
-            if hasattr(model, model_attribute):
-                model.__setattr__(model_attribute, attriute_value)
-        return model
+    def from_dict_to_model(source_dict, model_class):
+        model_instance = model_class()
+        for model_attribute, attriute_value in source_dict['_source'].items():
+            if hasattr(model_instance, model_attribute):
+                model_instance.__setattr__(model_attribute, attriute_value)
+        model_instance.pk = source_dict['_id']
+        return model_instance
 
-    def from_model_to_dict(self):
-        pass
+    @staticmethod
+    def from_model_to_dict(model):
+        model_dict = {}
+        for attribute in model.get_public_attribute():
+            model_dict[attribute] = getattr(model, attribute)
+        return model_dict
+
+
