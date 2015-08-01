@@ -1,7 +1,7 @@
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, NotFoundError
 import uuid
-from werkzeug.security import generate_password_hash
-from abc import ABCMeta, abstractmethod, abstractproperty
+from werkzeug.security import generate_password_hash, check_password_hash
+from abc import ABCMeta, abstractmethod
 
 
 class Model(object):
@@ -39,6 +39,9 @@ class User(Model):
         if not self.email:
             raise Exception("Identity not define")
         return self.email
+
+    def verify_password(self, password):
+        return check_password_hash(self.user_password, password)
 
 class Post(Model):
 

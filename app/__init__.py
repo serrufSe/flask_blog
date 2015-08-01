@@ -3,69 +3,79 @@ from flask_restful import Resource, Api, abort
 from models import ObjectManager, User, Post, Model
 from elasticsearch import NotFoundError
 from forms import UserForm, PostForm
+from flask.ext.httpauth import HTTPBasicAuth
 
 app = Flask(__name__)
 api = Api(app)
-SECRET_KEY = 'okokop'
-app.debug = True
+SECRET_KEY = 'dontnowhowdisablecrsf'
+auth = HTTPBasicAuth()
 
-class UserManagerMixin(object):
-    manager = ObjectManager(index=Model.index, doc_type=User.doc_type, model_class=User)
+user_manager = ObjectManager(index=Model.index, doc_type=User.doc_type, model_class=User)
+post_manger = ObjectManager(index=Model.index, doc_type=Post.doc_type, model_class=Post)
 
-class UserView(Resource, UserManagerMixin):
+def get_model_or_404(manager, pk):
+    try:
+        model = manager.find_one(pk)
+    except NotFoundError:
+        abort(404, message="Entity not found")
+    else:
+        return model
+
+
+@auth.verify_password
+def verify_pw(username, password):
+    try:
+        user = user_manager.find_one(username)
+    except NotFoundError:
+        return None
+    else:
+        return user.verify_password(password)
+
+class UserView(Resource):
 
     def get(self, user_pk):
-        try:
-            user = self.manager.find_one(user_pk)
-        except NotFoundError:
-            abort(404, message="User {} doesn't exist".format(user_pk))
-        else:
-            return {'email': user.email, 'password': user.user_password}
+        user = get_model_or_404(user_manager, user_pk)
+        return {'email': user.email, 'password': user.user_password}
 
-class UserListResource(Resource, UserManagerMixin):
+class UserListResource(Resource):
 
     def get(self):
-        return {'users': {user.pk:user.email for user in self.manager.find_all()}}
+        return [{'email': user.email} for user in user_manager.find_all()]
 
     def post(self):
         form = UserForm(request.form, csrf_enabled=False)
         if form.validate():
             user = User()
             form.populate_object(user)
-            self.manager.save(user)
+            user_manager.save(user)
             return 200
         else:
             return 400
 
 
-class PostManagerMixin(object):
-    manager = ObjectManager(index=Model.index, doc_type=Post.doc_type, model_class=Post)
+class PostList(Resource):
 
-
-class PostList(Resource, PostManagerMixin):
-
+    @auth.login_required
     def post(self):
         form = PostForm(request.form, csrf_enabled=False)
         if form.validate():
             post = Post()
+            post.user_pk = auth.username()
             form.populate_object(post)
-            self.manager.save(post)
+            post_manger.save(post)
             return 200
         else:
             return 400
 
     def get(self):
-        return {'posts': {posts.pk:{'content': posts.content, 'user_pk': posts.user_pk} for posts in self.manager.find_all()}}
+        return [{'post_pk': post.pk, 'content': post.content, 'user_pk': post.user_pk} for post in post_manger.find_all()]
 
-class PostView(Resource, PostManagerMixin):
+class PostView(Resource):
 
     def get(self, post_pk):
-        try:
-            post = self.manager.find_one(post_pk)
-        except NotFoundError:
-            abort(404, message="Post {} doesn't exist".format(post_pk))
-        else:
-            return {'user_pk': post.user_pk, 'content': post.content}
+        post = get_model_or_404(post_manger, post_pk)
+        return {'user_pk': post.user_pk, 'content': post.content}
+
 
 api.add_resource(UserListResource, '/users')
 api.add_resource(UserView, '/user/<user_pk>')

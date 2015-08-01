@@ -1,6 +1,6 @@
 from flask.ext.wtf import Form
 from wtforms import fields
-from wtforms.validators import Email, InputRequired, ValidationError
+from wtforms.validators import Email, InputRequired
 
 
 class UserForm(Form):
@@ -14,8 +14,6 @@ class UserForm(Form):
 
 class PostForm(Form):
     content = fields.StringField(validators=[InputRequired()])
-    user_pk = fields.StringField(validators=[InputRequired()])
 
     def populate_object(self, post):
         post.content = self.content.data
-        post.user_pk = self.user_pk.data
