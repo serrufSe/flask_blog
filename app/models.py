@@ -1,9 +1,13 @@
 from elasticsearch import Elasticsearch
 import uuid
 from werkzeug.security import generate_password_hash
+from abc import ABCMeta, abstractmethod, abstractproperty
 
 
 class Model(object):
+    __metaclass__ = ABCMeta
+
+    index = 'flask'
 
     def __init__(self):
         super(Model, self).__init__()
@@ -12,7 +16,13 @@ class Model(object):
     def get_public_attribute(self):
         return [attribute for attribute in self.__dict__ if attribute != 'pk']
 
+    @abstractmethod
+    def get_identity(self):
+        pass
+
 class User(Model):
+
+    doc_type = 'user'
 
     def __init__(self):
         super(User, self).__init__()
@@ -24,6 +34,23 @@ class User(Model):
 
     def __str__(self):
         return self.email
+
+    def get_identity(self):
+        if not self.email:
+            raise Exception("Identity not define")
+        return self.email
+
+class Post(Model):
+
+    doc_type='post'
+
+    def __init__(self):
+        super(Post, self).__init__()
+        self.user_pk = None
+        self.content = None
+
+    def get_identity(self):
+        return uuid.uuid1().int
 
 
 class ObjectManager(object):
@@ -40,9 +67,9 @@ class ObjectManager(object):
         source_dict = self.es.get(index=self.index, doc_type=self.doc_type, id=pk)
         return self.mapper.from_dict_to_model(source_dict, self.model_class)
 
-    def save(self, object):
-        model_dict = self.mapper.from_model_to_dict(object)
-        res = self.es.index(index=self.index, doc_type=self.doc_type, id=uuid.uuid1().int, body=model_dict)
+    def save(self, model):
+        model_dict = self.mapper.from_model_to_dict(model)
+        res = self.es.index(index=self.index, doc_type=self.doc_type, id=model.get_identity(), body=model_dict)
         return res['created']
 
     def find_all(self):

@@ -10,3 +10,12 @@ class UserForm(Form):
     def populate_object(self, user):
         user.set_password(self.password.data)
         user.email = self.email.data
+
+
+class PostForm(Form):
+    content = fields.StringField(validators=[InputRequired()])
+    user_pk = fields.StringField(validators=[InputRequired()])
+
+    def populate_object(self, post):
+        post.content = self.content.data
+        post.user_pk = self.user_pk.data
