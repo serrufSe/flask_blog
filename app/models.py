@@ -1,5 +1,6 @@
 from elasticsearch import Elasticsearch
 import uuid
+from werkzeug.security import generate_password_hash
 
 
 class Model(object):
@@ -16,7 +17,10 @@ class User(Model):
     def __init__(self):
         super(User, self).__init__()
         self.email = None
-        self.password = None
+        self.user_password = None
+
+    def set_password(self, password):
+        self.user_password = generate_password_hash(password)
 
     def __str__(self):
         return self.email
@@ -34,7 +38,7 @@ class ObjectManager(object):
 
     def find_one(self, pk):
         source_dict = self.es.get(index=self.index, doc_type=self.doc_type, id=pk)
-        return self.mapper.from_dict_to_model(source_dict['_source'], self.model_class)
+        return self.mapper.from_dict_to_model(source_dict, self.model_class)
 
     def save(self, object):
         model_dict = self.mapper.from_model_to_dict(object)
@@ -62,5 +66,6 @@ class ObjectMapper(object):
         for attribute in model.get_public_attribute():
             model_dict[attribute] = getattr(model, attribute)
         return model_dict
+
 
 
