@@ -28,6 +28,7 @@ class User(Model):
         super(User, self).__init__()
         self.email = None
         self.user_password = None
+        self.personal_information = None
 
     def set_password(self, password):
         self.user_password = generate_password_hash(password)
@@ -78,6 +79,11 @@ class ObjectManager(object):
     def find_all(self):
         res = self.es.search(index=self.index, body={"query": {"match_all": {}}})
         return [self.mapper.from_dict_to_model(model, self.model_class) for model in res['hits']['hits']]
+
+    def update(self, model):
+        model_dict = self.mapper.from_model_to_dict(model)
+        res = self.es.update(index=self.index, doc_type=self.doc_type, id=model.pk, body={"doc": model_dict})
+        return res
 
 class ObjectMapper(object):
 

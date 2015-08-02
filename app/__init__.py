@@ -76,6 +76,21 @@ class PostView(Resource):
         post = get_model_or_404(post_manger, post_pk)
         return {'user_pk': post.user_pk, 'content': post.content}
 
+    @auth.login_required
+    def put(self, post_pk):
+        post = get_model_or_404(post_manger, post_pk)
+        user = get_model_or_404(user_manager, post.user_pk)
+        if user.email != auth.username():
+            abort(401, message="Not user post")
+        else:
+            form = PostForm(request.form, csrf_enabled=False)
+            if form.validate():
+                form.populate_object(post)
+                post_manger.update(post)
+                return 200
+            else:
+                return 400
+
 
 api.add_resource(UserListResource, '/users')
 api.add_resource(UserView, '/user/<user_pk>')
