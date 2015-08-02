@@ -1,8 +1,8 @@
 from flask import Flask, request
 from flask_restful import Resource, Api, abort
-from models import ObjectManager, User, Post, Model
+from .models import ObjectManager, User, Post, Model
 from elasticsearch import NotFoundError
-from forms import UserForm, PostForm
+from .forms import UserForm, PostForm
 from flask.ext.httpauth import HTTPBasicAuth
 
 app = Flask(__name__)
@@ -35,7 +35,7 @@ class UserView(Resource):
 
     def get(self, user_pk):
         user = get_model_or_404(user_manager, user_pk)
-        return {'email': user.email, 'password': user.user_password}
+        return {'email': user.email}
 
 class UserListResource(Resource):
 

@@ -1,4 +1,4 @@
-from elasticsearch import Elasticsearch, NotFoundError
+from elasticsearch import Elasticsearch
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 from abc import ABCMeta, abstractmethod
