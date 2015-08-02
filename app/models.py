@@ -7,8 +7,6 @@ from abc import ABCMeta, abstractmethod
 class Model(object):
     __metaclass__ = ABCMeta
 
-    index = 'flask'
-
     def __init__(self):
         super(Model, self).__init__()
         self.pk = None
@@ -21,8 +19,6 @@ class Model(object):
         pass
 
 class User(Model):
-
-    doc_type = 'user'
 
     def __init__(self):
         super(User, self).__init__()
@@ -45,8 +41,6 @@ class User(Model):
         return check_password_hash(self.user_password, password)
 
 class Post(Model):
-
-    doc_type='post'
 
     def __init__(self):
         super(Post, self).__init__()
@@ -84,6 +78,9 @@ class ObjectManager(object):
         model_dict = self.mapper.from_model_to_dict(model)
         res = self.es.update(index=self.index, doc_type=self.doc_type, id=model.pk, body={"doc": model_dict})
         return res
+
+    def delete(self, pk):
+        return self.es.delete(index=self.index, doc_type=self.doc_type, id=pk)
 
 class ObjectMapper(object):
 

@@ -1,17 +1,20 @@
+import json
 from flask import Flask, request
 from flask_restful import Resource, Api, abort
+from flask_wtf import Form
 from .models import ObjectManager, User, Post, Model
 from elasticsearch import NotFoundError
 from .forms import UserForm, PostForm
 from flask.ext.httpauth import HTTPBasicAuth
 
 app = Flask(__name__)
+app.config['WTF_CSRF_ENABLED'] = False
+app.config['ELASTIC_INDEX'] = 'flask_blog'
 api = Api(app)
-SECRET_KEY = 'dontnowhowdisablecrsf'
 auth = HTTPBasicAuth()
 
-user_manager = ObjectManager(index=Model.index, doc_type=User.doc_type, model_class=User)
-post_manger = ObjectManager(index=Model.index, doc_type=Post.doc_type, model_class=Post)
+user_manager = ObjectManager(index=app.config.get('ELASTIC_INDEX'), doc_type='user', model_class=User)
+post_manger = ObjectManager(index='flask_blog', doc_type='post', model_class=Post)
 
 def get_model_or_404(manager, pk):
     try:
@@ -20,6 +23,13 @@ def get_model_or_404(manager, pk):
         abort(404, message="Entity not found")
     else:
         return model
+
+def is_user_himself(user_pk):
+    user = get_model_or_404(user_manager, pk=user_pk)
+    if user.email != auth.username():
+        abort(403, message="Forbidden")
+    else:
+        return True
 
 
 @auth.verify_password
@@ -37,13 +47,18 @@ class UserView(Resource):
         user = get_model_or_404(user_manager, user_pk)
         return {'email': user.email}
 
+    @auth.login_required
+    def delete(self, user_pk):
+        if is_user_himself(user_pk):
+            user_manager.delete(user_pk)
+
 class UserListResource(Resource):
 
     def get(self):
         return [{'email': user.email} for user in user_manager.find_all()]
 
     def post(self):
-        form = UserForm(request.form, csrf_enabled=False)
+        form = UserForm(request.form)
         if form.validate():
             user = User()
             form.populate_object(user)
@@ -57,7 +72,7 @@ class PostList(Resource):
 
     @auth.login_required
     def post(self):
-        form = PostForm(request.form, csrf_enabled=False)
+        form = PostForm(request.form)
         if form.validate():
             post = Post()
             post.user_pk = auth.username()
@@ -79,11 +94,8 @@ class PostView(Resource):
     @auth.login_required
     def put(self, post_pk):
         post = get_model_or_404(post_manger, post_pk)
-        user = get_model_or_404(user_manager, post.user_pk)
-        if user.email != auth.username():
-            abort(401, message="Not user post")
-        else:
-            form = PostForm(request.form, csrf_enabled=False)
+        if is_user_himself(post.user_pk):
+            form = PostForm(request.form)
             if form.validate():
                 form.populate_object(post)
                 post_manger.update(post)
@@ -91,6 +103,11 @@ class PostView(Resource):
             else:
                 return 400
 
+    @auth.login_required
+    def delete(self, post_pk):
+        post = get_model_or_404(post_manger, post_pk)
+        if is_user_himself(post.user_pk):
+            post_manger.delete(post.pk)
 
 api.add_resource(UserListResource, '/users')
 api.add_resource(UserView, '/user/<user_pk>')
