@@ -9,11 +9,10 @@ from flask.ext.httpauth import HTTPBasicAuth
 
 app = Flask(__name__)
 app.config['WTF_CSRF_ENABLED'] = False
-app.config['ELASTIC_INDEX'] = 'flask_blog'
 api = Api(app)
 auth = HTTPBasicAuth()
 
-user_manager = ObjectManager(index=app.config.get('ELASTIC_INDEX'), doc_type='user', model_class=User)
+user_manager = ObjectManager(index='flask_blog', doc_type='user', model_class=User)
 post_manger = ObjectManager(index='flask_blog', doc_type='post', model_class=Post)
 
 def get_model_or_404(manager, pk):

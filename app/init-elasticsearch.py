@@ -1,10 +1,9 @@
 from elasticsearch import Elasticsearch, NotFoundError
-from app import app
 
 
 def create_or_clear_index():
     es = Elasticsearch()
-    index_name = app.config.get('ELASTIC_INDEX')
+    index_name = 'flask_blog'
     try:
         es.indices.delete(index=index_name)
     except NotFoundError:
