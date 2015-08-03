@@ -50,6 +50,7 @@ class UserView(Resource):
     def delete(self, user_pk):
         if is_user_himself(user_pk):
             user_manager.delete(user_pk)
+        return 200
 
 class UserListResource(Resource):
 
@@ -107,6 +108,7 @@ class PostView(Resource):
         post = get_model_or_404(post_manger, post_pk)
         if is_user_himself(post.user_pk):
             post_manger.delete(post.pk)
+        return 200
 
 api.add_resource(UserListResource, '/users')
 api.add_resource(UserView, '/user/<user_pk>')
