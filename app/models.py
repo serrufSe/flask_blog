@@ -71,7 +71,7 @@ class ObjectManager(object):
         return res['created']
 
     def find_all(self):
-        res = self.es.search(index=self.index, body={"query": {"match_all": {}}})
+        res = self.es.search(index=self.index, doc_type=self.doc_type, body={"query": {"match_all": {}}})
         return [self.mapper.from_dict_to_model(model, self.model_class) for model in res['hits']['hits']]
 
     def update(self, model):
