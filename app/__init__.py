@@ -35,7 +35,7 @@ def is_user_himself(user_pk):
 def verify_pw(username, password):
     try:
         user = user_manager.find_one(username)
-    except NotFoundError:
+    except (ValueError, NotFoundError):
         return None
     else:
         return user.verify_password(password)
